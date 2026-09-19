@@ -15,10 +15,10 @@ export const DEMO_POLICIES: PolicyDef[] = [
   {
     id: "PROCUREMENT_02",
     name: "Approved Vendors Only",
-    description: "Only purchase from vendors on the approved list.",
+    description: "Purchasing from a vendor outside the approved list needs a human sign-off — it may be a legitimate one-off, not an automatic no.",
     condition: { type: "approved_vendors", vendors: APPROVED_VENDORS },
     severity: "HIGH",
-    action: "BLOCK",
+    action: "REQUIRE_APPROVAL",
     enabled: true,
   },
   {

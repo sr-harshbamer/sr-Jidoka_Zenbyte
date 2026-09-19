@@ -7,43 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum StepStatus {
-  ALLOW
-  WARN
-  PAUSE
-  REQUIRE_APPROVAL
-  BLOCK
-  TERMINATE
-}
-
-enum RunStatus {
-  RUNNING
-  COMPLETED
-  BLOCKED
-  AWAITING_APPROVAL
-  TERMINATED
-}
-
-enum PolicySeverity {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
-enum PolicyAction {
-  WARN
-  BLOCK
-  REQUIRE_APPROVAL
-}
-
-enum InterventionDecision {
-  PENDING
-  APPROVE
-  REJECT
-  APPROVE_ONCE
-  ALWAYS_ALLOW
-}
+// SQLite has no native enum support in Prisma — these are plain strings,
+// validated against the corresponding TypeScript union types in
+// src/engine/types.ts at the application layer instead.
+//
+// StepStatus:          ALLOW | WARN | PAUSE | REQUIRE_APPROVAL | BLOCK | TERMINATE
+// RunStatus:           RUNNING | COMPLETED | BLOCKED | AWAITING_APPROVAL | TERMINATED
+// Severity:            LOW | MEDIUM | HIGH | CRITICAL
+// PolicyAction:        WARN | BLOCK | REQUIRE_APPROVAL
+// InterventionDecision: PENDING | APPROVE | REJECT | APPROVE_ONCE | ALWAYS_ALLOW
 
 model Agent {
   id          String   @id @default(cuid())
@@ -57,14 +29,14 @@ model Agent {
 }
 
 model AgentRun {
-  id           String    @id @default(cuid())
-  agentId      String
-  agent        Agent     @relation(fields: [agentId], references: [id])
-  task         String
-  scenarioKey  String? // which scripted scenario drove this run, if any (demo mode)
-  status       RunStatus @default(RUNNING)
-  startedAt    DateTime  @default(now())
-  endedAt      DateTime?
+  id          String    @id @default(cuid())
+  agentId     String
+  agent       Agent     @relation(fields: [agentId], references: [id])
+  task        String
+  scenarioKey String? // which scripted scenario drove this run, if any (demo mode)
+  status      String    @default("RUNNING")
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
 
   steps         AgentStep[]
   riskEvents    RiskEvent[]
@@ -73,107 +45,107 @@ model AgentRun {
 }
 
 model AgentStep {
-  id          String     @id @default(cuid())
+  id          String   @id @default(cuid())
   runId       String
-  run         AgentRun   @relation(fields: [runId], references: [id])
+  run         AgentRun @relation(fields: [runId], references: [id])
   stepNumber  Int
-  timestamp   DateTime   @default(now())
+  timestamp   DateTime @default(now())
   action      String
   tool        String?
   input       String // JSON-encoded
   output      String? // JSON-encoded
   reasoning   String?
-  riskScore   Int        @default(0)
+  riskScore   Int      @default(0)
   riskFactors String? // JSON-encoded breakdown
-  status      StepStatus @default(ALLOW)
+  status      String   @default("ALLOW")
 
-  toolCalls     ToolCall[]
-  evidence      Evidence[]
-  decisions     Decision[]
-  riskEvents    RiskEvent[]
+  toolCalls  ToolCall[]
+  evidence   Evidence[]
+  decisions  Decision[]
+  riskEvents RiskEvent[]
 }
 
 model ToolCall {
-  id        String    @id @default(cuid())
-  stepId    String
-  step      AgentStep @relation(fields: [stepId], references: [id])
-  toolName  String
-  params    String // JSON-encoded
-  result    String? // JSON-encoded
-  latencyMs Int       @default(0)
-  trusted   Boolean   @default(true)
-  sourceType String   @default("simulated") // internal | external | simulated
+  id         String    @id @default(cuid())
+  stepId     String
+  step       AgentStep @relation(fields: [stepId], references: [id])
+  toolName   String
+  params     String // JSON-encoded
+  result     String? // JSON-encoded
+  latencyMs  Int       @default(0)
+  trusted    Boolean   @default(true)
+  sourceType String    @default("simulated") // internal | external | simulated
 }
 
 model Policy {
-  id          String         @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   description String
   condition   String // JSON-encoded structured rule
-  severity    PolicySeverity
-  action      PolicyAction
-  enabled     Boolean        @default(true)
-  createdAt   DateTime       @default(now())
+  severity    String
+  action      String
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
 }
 
 model RiskEvent {
-  id                    String    @id @default(cuid())
+  id                    String     @id @default(cuid())
   runId                 String
-  run                   AgentRun  @relation(fields: [runId], references: [id])
+  run                   AgentRun   @relation(fields: [runId], references: [id])
   stepId                String?
   step                  AgentStep? @relation(fields: [stepId], references: [id])
   type                  String // POLICY_VIOLATION | ANOMALY | EVIDENCE_CONFLICT | PROMPT_INJECTION
-  severity              PolicySeverity
+  severity              String
   description           String
   riskScoreContribution Int
-  detectedAt            DateTime  @default(now())
+  detectedAt            DateTime   @default(now())
 }
 
 model Evidence {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   stepId        String
   step          AgentStep @relation(fields: [stepId], references: [id])
   source        String
-  sourceType    String   @default("trusted") // trusted | untrusted
+  sourceType    String    @default("trusted") // trusted | untrusted
   content       String
-  retrievedAt   DateTime @default(now())
+  retrievedAt   DateTime  @default(now())
   conflictsWith String? // id of the other Evidence record it conflicts with
 }
 
 model Decision {
-  id         String   @id @default(cuid())
-  stepId     String
-  step       AgentStep @relation(fields: [stepId], references: [id])
-  type       String // POLICY_EVAL | RISK_EVAL | HUMAN_APPROVAL
-  outcome    String // ALLOW | BLOCK | APPROVE | REJECT
-  reasoning  String
-  decidedBy  String // system | human:<name>
-  decidedAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  stepId    String
+  step      AgentStep @relation(fields: [stepId], references: [id])
+  type      String // POLICY_EVAL | RISK_EVAL | HUMAN_APPROVAL
+  outcome   String // ALLOW | BLOCK | APPROVE | REJECT
+  reasoning String
+  decidedBy String // system | human:<name>
+  decidedAt DateTime @default(now())
 }
 
 model HumanIntervention {
-  id               String               @id @default(cuid())
-  runId            String
-  run              AgentRun             @relation(fields: [runId], references: [id])
-  stepId           String?
-  requestedAt      DateTime             @default(now())
-  respondedAt      DateTime?
-  requestedAction  String // JSON-encoded: what the agent wanted to do
-  context          String // JSON-encoded: why flagged, policies, evidence, risk
-  decision         InterventionDecision @default(PENDING)
-  respondedBy      String?
-  notes            String?
+  id              String    @id @default(cuid())
+  runId           String
+  run             AgentRun  @relation(fields: [runId], references: [id])
+  stepId          String?
+  requestedAt     DateTime  @default(now())
+  respondedAt     DateTime?
+  requestedAction String // JSON-encoded: what the agent wanted to do
+  context         String // JSON-encoded: why flagged, policies, evidence, risk
+  decision        String    @default("PENDING")
+  respondedBy     String?
+  notes           String?
 }
 
 model AuditEvent {
-  id                 String   @id @default(cuid())
-  runId              String
-  run                AgentRun @relation(fields: [runId], references: [id])
-  timestamp          DateTime @default(now())
-  eventType          String
-  actor              String // agent | system | human
-  summary            String
-  fullPayload        String // JSON-encoded
-  previousEventHash  String?
-  hash               String
+  id                String   @id @default(cuid())
+  runId             String
+  run               AgentRun @relation(fields: [runId], references: [id])
+  timestamp         DateTime @default(now())
+  eventType         String
+  actor             String // agent | system | human
+  summary           String
+  fullPayload       String // JSON-encoded
+  previousEventHash String?
+  hash              String
 }

@@ -26,7 +26,7 @@ export const SCENARIOS: Scenario[] = [
     key: "unauthorized_vendor",
     title: "Unauthorized Vendor",
     description: "Agent selects a vendor that isn't on the approved list.",
-    expectedStatus: "BLOCK",
+    expectedStatus: "REQUIRE_APPROVAL",
     step: {
       runId: "demo-run",
       stepNumber: 5,
