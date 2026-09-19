@@ -23,6 +23,11 @@ export function createApp() {
     socket.on("disconnect", () => console.log(`client disconnected: ${socket.id}`));
   });
 
+  // --- Agents ---
+  app.get("/api/agents", async (_req, res) => {
+    res.json(await prisma.agent.findMany());
+  });
+
   // --- Scenarios ---
   app.get("/api/scenarios", (_req, res) => {
     res.json(
